@@ -5,7 +5,7 @@ import Publish from "@/pages/Publish";
 import Home from "@/pages/Home";
 import AuthRoute from "@/components/AuthRoute";
 import { createBrowserRouter } from 'react-router-dom'
-import { Children } from "react";
+
 //配置路由实例
 const router = createBrowserRouter([
     {
