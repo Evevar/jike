@@ -19,5 +19,46 @@ function createArticleApi(data) {
     })
 }
 
+//获取文章列表
+function getArticleListApi(params) {
+    return request({
+        url: '/mp/articles',
+        method: 'GET',
+        params
+    })
+}
 
-export { getChannelApi, createArticleApi }
+//更新文章表单
+function updateArticleApi(data) {
+    return request({
+        url: `mp/articles/${data.id}?draft=false`,
+        method: 'PUT',
+        data
+    })
+}
+
+//删除文章
+function delArticleApi(id) {
+    return request({
+        url: `/mp/articles/${id}`,
+        method: 'DELETE'
+    })
+}
+
+//获取文章详情
+function getArticleByIdApi(id) {
+    return request({
+        url: `/mp/articles/${id}`,
+        method: 'GET'
+    })
+}
+
+
+export {
+    getArticleListApi,
+    getChannelApi,
+    createArticleApi,
+    delArticleApi,
+    getArticleByIdApi,
+    updateArticleApi
+}

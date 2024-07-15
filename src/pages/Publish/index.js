@@ -11,32 +11,21 @@ import {
     message
 } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import './index.scss'
-
 import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
 import { useEffect, useState } from 'react'
-import { createArticleApi, getChannelApi } from '@/apis/article'
-
+import { createArticleApi, getArticleByIdApi, updateArticleApi } from '@/apis/article'
+import { useChannel } from '@/hooks/useChannel'
 
 const { Option } = Select
 
 const Publish = () => {
     //获取频道列表
-    const [channelList, setChannelList] = useState([])
-
-    useEffect(() => {
-        //1.封装函数 在函数体内调用接口
-        const getChannelList = async () => {
-            const res = await getChannelApi()
-            setChannelList(res.data.channels)
-        }
-        //调用函数
-        getChannelList()
-    }, [])
+    const { channelList } = useChannel()
     //提交表单
-    const onFinish = (formValue) => {
+    const onFinish = async (formValue) => {
         console.log(formValue)
         //效验封面类型imageType是否和实际的图片列表imageList数量相等
         if (imageList.length !== imageType) return message.warning('封面类型和图片数量不匹配')
@@ -47,12 +36,28 @@ const Publish = () => {
             content,
             cover: {
                 type: imageType,
-                image: imageList.map(item => item.response.data.url)
+                //这里的url只是新增的时候的逻辑
+                //这时候要做编辑的逻辑处理
+                images: imageList.map(item => {
+                    if (item.response) {
+                        return item.response.data.url
+                    } else {
+                        return item.url
+                    }
+                })
             },
             channel_id
         }
         //调用接口提交
-        createArticleApi(reqData)
+        //根据不同状态调用不同接口
+        if (articleId) {
+            //更新接口
+            await updateArticleApi({ ...reqData, id: articleId })
+        } else {
+            await createArticleApi(reqData)
+        }
+
+        message.success(`${articleId ? '编辑' : '发布'}文章成功`)
     }
     //上传回调
     const [imageList, setImageList] = useState([])
@@ -67,13 +72,44 @@ const Publish = () => {
         setImageType(e.target.value)
 
     }
+    //回填数据
+    const [searchParams] = useSearchParams()
+    const articleId = searchParams.get('id')
+    //获取实例
+    const [form] = Form.useForm()
+    useEffect(() => {
+        //1.通过id获取数据
+        async function getArticleDetail() {
+            const res = await getArticleByIdApi(articleId)
+            const data = res.data
+            const { cover } = data
+            form.setFieldsValue({
+                ...data,
+                type: cover.type
+            })
+            //数据结构类型不同  需要重新使用set方法
+            //回填图片列表
+            setImageType(cover.type)
+            //显示图片
+            setImageList(cover.images.map(url => {
+                return { url }
+            }))
+        }
+        //只有有id才能调用此函数
+        if (articleId) {
+            //2.调用实例方法 完成回填
+            getArticleDetail()
+        }
+
+
+    }, [articleId, form])
     return (
         <div className="publish">
             <Card
                 title={
                     <Breadcrumb items={[
                         { title: <Link to={'/'}>首页</Link> },
-                        { title: '发布文章' },
+                        { title: `${articleId ? '编辑文章' : '发布文章'}` },
                     ]}
                     />
                 }
@@ -83,6 +119,7 @@ const Publish = () => {
                     wrapperCol={{ span: 16 }}
                     initialValues={{ type: 0 }}
                     onFinish={onFinish}
+                    form={form}
                 >
                     <Form.Item
                         label="标题"
@@ -119,6 +156,7 @@ const Publish = () => {
                             multiple={imageType > 1}
                             onChange={onChange}
                             maxCount={imageType}
+                            fileList={imageList}
                         >
 
                             {imageList.length >= imageType ? null : <PlusOutlined style={{ marginTop: 8 }} />}
@@ -142,7 +180,7 @@ const Publish = () => {
                     <Form.Item wrapperCol={{ offset: 4 }}>
                         <Space>
                             <Button size="large" type="primary" htmlType="submit">
-                                发布文章
+                                {articleId ? '更新文章' : '发布文章'}
                             </Button>
                         </Space>
                     </Form.Item>
